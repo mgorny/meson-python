@@ -463,9 +463,9 @@ class _WheelBuilder():
         # inject variant metadata
         if self._variant is not None:
             # hack to avoid forking pyproject-metadata
-            import pyproject_metadata.constants
-            pyproject_metadata.constants.KNOWN_METADATA_FIELDS.add('variant')
-            pyproject_metadata.constants.KNOWN_METADATA_FIELDS.add('variant-hash')
+            import pyproject_metadata.constants as c
+            c.KNOWN_METADATA_FIELDS.add('variant')
+            c.KNOWN_METADATA_FIELDS.add('variant-hash')
 
             metadata['Variant-Hash'] = self._variant.hexdigest
             for meta in self._variant:
