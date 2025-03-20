@@ -11,7 +11,7 @@ requires = [
   'packaging >= 19.0',
   'pyproject-metadata >= 0.9.0',
   'tomli >= 1.0.0; python_version < "3.11"',
-  'git+https://github.com/wheelnext/variantlib@variant-json',
+  'variantlib @ https://github.com/wheelnext/variantlib/archive/variant-json.tar.gz',
 ]
 
 [project]
@@ -40,7 +40,7 @@ dependencies = [
   'packaging >= 19.0',
   'pyproject-metadata >= 0.9.0',
   'tomli >= 1.0.0; python_version < "3.11"',
-  'git+https://github.com/wheelnext/variantlib@variant-json',
+  'variantlib @ https://github.com/wheelnext/variantlib/archive/variant-json.tar.gz',
 ]
 
 [project.optional-dependencies]
