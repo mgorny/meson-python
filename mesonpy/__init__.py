@@ -44,6 +44,8 @@ import packaging.utils
 import packaging.version
 import pyproject_metadata
 
+from variantlib.meta import VariantMeta, VariantDescription
+
 import mesonpy._compat
 import mesonpy._rpath
 import mesonpy._tags
@@ -310,11 +312,13 @@ class _WheelBuilder():
         manifest: Dict[str, List[Tuple[pathlib.Path, str]]],
         limited_api: bool,
         allow_windows_shared_libs: bool,
+        variant: Optional[VariantDescriptor],
     ) -> None:
         self._metadata = metadata
         self._manifest = manifest
         self._limited_api = limited_api
         self._allow_windows_shared_libs = allow_windows_shared_libs
+        self._variant = variant
 
     @property
     def _has_internal_libs(self) -> bool:
@@ -349,9 +353,15 @@ class _WheelBuilder():
         return mesonpy._tags.Tag(None, self._stable_abi, None)
 
     @property
+    def _variant_suffix(self) -> str:
+        if self._variant is not None:
+            return f"-{self._variant.hexdigest}"
+        return ""
+
+    @property
     def name(self) -> str:
         """Wheel name, this includes the basename and tag."""
-        return f'{self._metadata.distribution_name}-{self._metadata.version}-{self.tag}'
+        return f'{self._metadata.distribution_name}-{self._metadata.version}-{self.tag}{self._variant_suffix}'
 
     @property
     def _distinfo_dir(self) -> str:
@@ -448,7 +458,20 @@ class _WheelBuilder():
 
     def _wheel_write_metadata(self, whl: mesonpy._wheelfile.WheelFile) -> None:
         # add metadata
-        whl.writestr(f'{self._distinfo_dir}/METADATA', bytes(self._metadata.as_rfc822()))
+        metadata = self._metadata.as_rfc822()
+
+        # inject variant metadata
+        if self._variant is not None:
+            # hack to avoid forking pyproject-metadata
+            import pyproject_metadata.constants
+            pyproject_metadata.constants.KNOWN_METADATA_FIELDS.add('variant')
+            pyproject_metadata.constants.KNOWN_METADATA_FIELDS.add('variant-hash')
+
+            metadata['Variant-Hash'] = self._variant.hexdigest
+            for meta in self._variant:
+                metadata['Variant'] = meta.to_str()
+
+        whl.writestr(f'{self._distinfo_dir}/METADATA', bytes(metadata))
         whl.writestr(f'{self._distinfo_dir}/WHEEL', self.wheel)
         if self.entrypoints_txt:
             whl.writestr(f'{self._distinfo_dir}/entry_points.txt', self.entrypoints_txt)
@@ -599,6 +622,11 @@ def _validate_config_settings(config_settings: Dict[str, Any]) -> Dict[str, Any]
     def _string_or_strings(value: Any, name: str) -> List[str]:
         return list([value,] if isinstance(value, str) else value)
 
+    def _variant_names(value: Any, name: str) -> VariantDescription:
+        if isinstance(value, str):
+            value = [value]
+        return VariantDescription([VariantMeta.from_str(x) for x in value])
+
     options = {
         'builddir': _string,
         'build-dir': _string,
@@ -607,6 +635,7 @@ def _validate_config_settings(config_settings: Dict[str, Any]) -> Dict[str, Any]
         'setup-args': _string_or_strings,
         'compile-args': _string_or_strings,
         'install-args': _string_or_strings,
+        'variant-name': _variant_names,
     }
     assert all(f'{name}-args' in options for name in _MESON_ARGS_KEYS)
 
@@ -644,10 +673,12 @@ class Project():
         build_dir: Path,
         meson_args: Optional[MesonArgs] = None,
         editable_verbose: bool = False,
+        variant: Optional[VariantDescription] = None,
     ) -> None:
         self._source_dir = pathlib.Path(source_dir).absolute()
         self._build_dir = pathlib.Path(build_dir).absolute()
         self._editable_verbose = editable_verbose
+        self._variant = variant
         self._meson_native_file = self._build_dir / 'meson-python-native-file.ini'
         self._meson_cross_file = self._build_dir / 'meson-python-cross-file.ini'
         self._meson_args: MesonArgs = collections.defaultdict(list)
@@ -1001,13 +1032,13 @@ class Project():
     def wheel(self, directory: Path) -> pathlib.Path:
         """Generates a wheel in the specified directory."""
         self.build()
-        builder = _WheelBuilder(self._metadata, self._manifest, self._limited_api, self._allow_windows_shared_libs)
+        builder = _WheelBuilder(self._metadata, self._manifest, self._limited_api, self._allow_windows_shared_libs, self._variant)
         return builder.build(directory)
 
     def editable(self, directory: Path) -> pathlib.Path:
         """Generates an editable wheel in the specified directory."""
         self.build()
-        builder = _EditableWheelBuilder(self._metadata, self._manifest, self._limited_api, self._allow_windows_shared_libs)
+        builder = _EditableWheelBuilder(self._metadata, self._manifest, self._limited_api, self._allow_windows_shared_libs, self._variant)
         return builder.build(directory, self._source_dir, self._build_dir, self._build_command, self._editable_verbose)
 
 
@@ -1020,11 +1051,12 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
     source_dir = os.path.curdir
     build_dir = settings.get('build-dir')
     editable_verbose = bool(settings.get('editable-verbose'))
+    variant = settings.get('variant-name')
 
     with contextlib.ExitStack() as ctx:
         if build_dir is None:
             build_dir = ctx.enter_context(tempfile.TemporaryDirectory(prefix='.mesonpy-', dir=source_dir))
-        yield Project(source_dir, build_dir, meson_args, editable_verbose)
+        yield Project(source_dir, build_dir, meson_args, editable_verbose, variant)
 
 
 def _parse_version_string(string: str) -> Tuple[int, ...]:
