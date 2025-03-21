@@ -622,10 +622,10 @@ def _validate_config_settings(config_settings: Dict[str, Any]) -> Dict[str, Any]
     def _string_or_strings(value: Any, name: str) -> List[str]:
         return list([value,] if isinstance(value, str) else value)
 
-    def _variant_names(value: Any, name: str) -> VariantDescription:
+    def _variant_names(value: Any, name: str) -> list[VariantMeta]:
         if isinstance(value, str):
             value = [value]
-        return VariantDescription([VariantMeta.from_str(x) for x in value])
+        return [VariantMeta.from_str(x) for x in value]
 
     options = {
         'builddir': _string,
@@ -635,6 +635,7 @@ def _validate_config_settings(config_settings: Dict[str, Any]) -> Dict[str, Any]
         'setup-args': _string_or_strings,
         'compile-args': _string_or_strings,
         'install-args': _string_or_strings,
+        'variant': _variant_names,
         'variant-name': _variant_names,
     }
     assert all(f'{name}-args' in options for name in _MESON_ARGS_KEYS)
@@ -1051,12 +1052,19 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
     source_dir = os.path.curdir
     build_dir = settings.get('build-dir')
     editable_verbose = bool(settings.get('editable-verbose'))
-    variant = settings.get('variant-name')
+    variants = settings.get('variant', [])
+    variant_names = settings.get('variant-name', []) + variants
+
+    variant_desc = None
+    if variants:
+        variant_desc = VariantDescription(variant_names)
+        meson_args.setdefault('setup', [])
+        meson_args['setup'].append(f'-Dvariant={[x.to_str() for x in variants]!r}')
 
     with contextlib.ExitStack() as ctx:
         if build_dir is None:
             build_dir = ctx.enter_context(tempfile.TemporaryDirectory(prefix='.mesonpy-', dir=source_dir))
-        yield Project(source_dir, build_dir, meson_args, editable_verbose, variant)
+        yield Project(source_dir, build_dir, meson_args, editable_verbose, variant_desc)
 
 
 def _parse_version_string(string: str) -> Tuple[int, ...]:
