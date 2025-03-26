@@ -45,6 +45,7 @@ import packaging.version
 import pyproject_metadata
 
 from variantlib.meta import VariantMeta, VariantDescription
+from variantlib.plugins import PluginLoader
 
 import mesonpy._compat
 import mesonpy._rpath
@@ -1055,9 +1056,8 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
     variants = settings.get('variant', [])
     variant_names = settings.get('variant-name', []) + variants
 
-    variant_desc = None
+    variant_desc = VariantDescription(variant_names) if variant_names else None
     if variants:
-        variant_desc = VariantDescription(variant_names)
         meson_args.setdefault('setup', [])
         meson_args['setup'].append(f'-Dvariant={[x.to_str() for x in variants]!r}')
 
