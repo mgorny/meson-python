@@ -354,15 +354,19 @@ class _WheelBuilder():
         return mesonpy._tags.Tag(None, self._stable_abi, None)
 
     @property
-    def _variant_suffix(self) -> str:
-        if self._variant is not None:
-            return f"-{self._variant.hexdigest}"
-        return ""
-
-    @property
     def name(self) -> str:
         """Wheel name, this includes the basename and tag."""
-        return f'{self._metadata.distribution_name}-{self._metadata.version}-{self.tag}{self._variant_suffix}'
+        name = f'{self._metadata.distribution_name}-{self._metadata.version}-{self.tag}'
+        if self._variant is not None:
+            name += f'-{self._variant.hexdigest}'
+            labels = PluginLoader().get_variant_labels(self._variant)
+            for numlabels in range(len(labels), 0, -1):
+                long_name = "+".join((name, *labels[:numlabels]))
+                # if labels would give us filename that's longer than 128
+                # characters (124 + .whl), strip them
+                if len(long_name) < 124:
+                    return long_name
+        return name
 
     @property
     def _distinfo_dir(self) -> str:

@@ -1,0 +1,13 @@
+[build-system]
+requires = ["flit_core>=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "demo-plugins"
+version = "0"
+description = "Demo plugins for meson-python/numpy variants"
+dependencies = ["variantlib"]
+
+[project.entry-points."variantlib.plugins"]
+blas = "demo_plugins:BlasPlugin"
+x86_64 = "demo_plugins:X8664Plugin"
