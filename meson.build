@@ -16,3 +16,7 @@ py.install_sources(
     'mesonpy/_wheelfile.py',
     subdir: 'mesonpy',
 )
+
+py.install_sources(
+    'demo-plugins/demo_plugins.py'
+)
