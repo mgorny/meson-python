@@ -44,8 +44,8 @@ import packaging.utils
 import packaging.version
 import pyproject_metadata
 
-from variantlib.meta import VariantMeta, VariantDescription
-from variantlib.plugins import PluginLoader
+from variantlib.models.variant import VariantProperty, VariantDescription
+from variantlib.loader import PluginLoader
 
 import mesonpy._compat
 import mesonpy._rpath
@@ -313,7 +313,7 @@ class _WheelBuilder():
         manifest: Dict[str, List[Tuple[pathlib.Path, str]]],
         limited_api: bool,
         allow_windows_shared_libs: bool,
-        variant: Optional[VariantDescriptor],
+        variant: Optional[VariantDescription],
     ) -> None:
         self._metadata = metadata
         self._manifest = manifest
@@ -359,13 +359,16 @@ class _WheelBuilder():
         name = f'{self._metadata.distribution_name}-{self._metadata.version}-{self.tag}'
         if self._variant is not None:
             name += f'-{self._variant.hexdigest}'
-            labels = PluginLoader().get_variant_labels(self._variant)
-            for numlabels in range(len(labels), 0, -1):
-                long_name = "+".join((name, *labels[:numlabels]))
-                # if labels would give us filename that's longer than 128
-                # characters (124 + .whl), strip them
-                if len(long_name) < 124:
-                    return long_name
+            # variant label API on hold, see:
+            # https://github.com/wheelnext/variantlib/pull/12#issuecomment-2781618773
+            if False:
+                labels = PluginLoader().get_variant_labels(self._variant)
+                for numlabels in range(len(labels), 0, -1):
+                    long_name = "+".join((name, *labels[:numlabels]))
+                    # if labels would give us filename that's longer than 128
+                    # characters (124 + .whl), strip them
+                    if len(long_name) < 124:
+                        return long_name
         return name
 
     @property
@@ -473,8 +476,8 @@ class _WheelBuilder():
             c.KNOWN_METADATA_FIELDS.add('variant-hash')
 
             metadata['Variant-Hash'] = self._variant.hexdigest
-            for meta in self._variant:
-                metadata['Variant'] = meta.to_str()
+            for vprop in self._variant.properties:
+                metadata['Variant'] = vprop.to_str()
 
         whl.writestr(f'{self._distinfo_dir}/METADATA', bytes(metadata))
         whl.writestr(f'{self._distinfo_dir}/WHEEL', self.wheel)
@@ -627,10 +630,10 @@ def _validate_config_settings(config_settings: Dict[str, Any]) -> Dict[str, Any]
     def _string_or_strings(value: Any, name: str) -> List[str]:
         return list([value,] if isinstance(value, str) else value)
 
-    def _variant_names(value: Any, name: str) -> list[VariantMeta]:
+    def _variant_names(value: Any, name: str) -> list[VariantProperty]:
         if isinstance(value, str):
             value = [value]
-        return [VariantMeta.from_str(x) for x in value]
+        return [VariantProperty.from_str(x) for x in value]
 
     options = {
         'builddir': _string,
