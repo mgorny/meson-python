@@ -1,13 +1,18 @@
-from variantlib.base import PluginBase
-from variantlib.config import ProviderConfig
-from variantlib.meta import VariantDescription
+from variantlib.base import PluginType
+from variantlib.models.provider import VariantFeatureConfig
+from variantlib.models.variant import VariantDescription
 
 
-class BlasPlugin(PluginBase):
+class BlasPlugin(PluginType):
     namespace = "blas"
 
-    def get_supported_configs(self) -> ProviderConfig:
-        return None
+    def get_all_configs(self) -> list[VariantFeatureConfig]:
+        return [
+            VariantFeatureConfig("variant", ["mkl", "openblas"])
+        ]
+
+    def get_supported_configs(self) -> list[VariantFeatureConfig]:
+        return []
 
     def get_variant_labels(self, variant_desc: VariantDescription) -> list[str]:
         for meta in variant_desc:
@@ -16,11 +21,16 @@ class BlasPlugin(PluginBase):
         return []
 
 
-class X8664Plugin(PluginBase):
+class X8664Plugin(PluginType):
     namespace = "x86_64"
 
-    def get_supported_configs(self) -> ProviderConfig:
-        return None
+    def get_all_configs(self) -> list[VariantFeatureConfig]:
+        return [
+            VariantFeatureConfig("baseline", ["v1", "v2", "v3", "v4"])
+        ]
+
+    def get_supported_configs(self) -> list[VariantFeatureConfig]:
+        return []
 
     def get_variant_labels(self, variant_desc: VariantDescription) -> list[str]:
         for meta in variant_desc:
