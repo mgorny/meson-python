@@ -44,6 +44,7 @@ import packaging.utils
 import packaging.version
 import pyproject_metadata
 
+from variantlib.api import validate_variant
 from variantlib.models.variant import VariantProperty, VariantDescription
 from variantlib.loader import PluginLoader
 
@@ -1064,6 +1065,24 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
     variant_names = settings.get('variant-name', []) + variants
 
     variant_desc = VariantDescription(variant_names) if variant_names else None
+    if variant_desc is not None:
+        variant_valid = validate_variant(variant_desc)
+
+        invalid_variants = sorted(x for x, y in variant_valid.results.items()
+                                  if y is False)
+        if invalid_variants:
+            raise ConfigError(
+                "The following variant properties are invalid: "
+                f"{' '.join(x.to_str() for x in invalid_variants)}")
+
+        unknown_variants = sorted(x for x, y in variant_valid.results.items()
+                                  if y is None)
+        if unknown_variants:
+            raise ConfigError(
+                "The following variant properties are unknown (no installed "
+                "plugin claims the namespace): "
+                f"{' '.join(x.to_str() for x in unknown_variants)}")
+
     if variants:
         meson_args.setdefault('setup', [])
         meson_args['setup'].append(f'-Dvariant={[x.to_str() for x in variants]!r}')
