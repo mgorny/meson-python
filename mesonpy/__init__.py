@@ -1077,6 +1077,12 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
                 "plugin claims the namespace): "
                 f"{' '.join(sorted(x.to_str() for x in variant_valid.unknown_properties))}")
 
+        build_setup = PluginLoader.get_build_setup(variant_desc)
+        if "cflags" in build_setup:
+            os.environ["CFLAGS"] = " ".join((os.environ.get("CFLAGS", ""), *build_setup["cflags"]))
+        if "cxxflags" in build_setup:
+            os.environ["CXXFLAGS"] = " ".join((os.environ.get("CXXFLAGS", ""), *build_setup["cxxflags"]))
+
     if variants:
         meson_args.setdefault('setup', [])
         meson_args['setup'].append(f'-Dvariant={[x.to_str() for x in variants]!r}')

@@ -1,4 +1,5 @@
 from variantlib.base import PluginType
+from variantlib.base import VariantPropertyType
 from variantlib.models.provider import VariantFeatureConfig
 from variantlib.models.variant import VariantDescription
 
@@ -37,3 +38,15 @@ class X8664Plugin(PluginType):
             if meta.namespace == "x86_64" and meta.key == "baseline":
                 return [f"x86_64_{meta.value}"]
         return []
+
+    def get_build_setup(
+        self, properties: list[VariantPropertyType]
+    ) -> dict[str, list[str]]:
+        for prop in properties:
+            assert prop.namespace == self.namespace
+            if prop.feature == "baseline":
+                return {
+                    "cflags": [f"-march=x86-64-{prop.value}"],
+                    "cxxflags": [f"-march=x86-64-{prop.value}"],
+                }
+        return {}
