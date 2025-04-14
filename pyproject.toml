@@ -68,6 +68,9 @@ repository = 'https://github.com/mesonbuild/meson-python'
 documentation = 'https://mesonbuild.com/meson-python/'
 changelog = 'https://mesonbuild.com/meson-python/changelog.html'
 
+[project.entry-points."variantlib.plugins"]
+blas = "demo_plugins:BlasPlugin"
+
 
 [tool.mypy]
 show_error_codes = true
