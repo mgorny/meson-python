@@ -1078,10 +1078,13 @@ def _project(config_settings: Optional[Dict[Any, Any]] = None) -> Iterator[Proje
                 f"{' '.join(sorted(x.to_str() for x in variant_valid.unknown_properties))}")
 
         build_setup = PluginLoader.get_build_setup(variant_desc)
-        if "cflags" in build_setup:
-            os.environ["CFLAGS"] = " ".join((os.environ.get("CFLAGS", ""), *build_setup["cflags"]))
-        if "cxxflags" in build_setup:
-            os.environ["CXXFLAGS"] = " ".join((os.environ.get("CXXFLAGS", ""), *build_setup["cxxflags"]))
+        for build_var in ("cflags", "cxxflags", "cuflags", "objcflags", "fflags", "dflags",
+                          "valaflags", "rustflags", "cythonflags", "ldflags"):
+            if build_var in build_setup:
+                os.environ[build_var.upper()] = (
+                    " ".join((os.environ.get(build_var.upper(), ""),
+                              *build_setup[build_var]))
+                )
 
     if variants:
         meson_args.setdefault('setup', [])
