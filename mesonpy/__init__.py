@@ -44,7 +44,7 @@ import packaging.utils
 import packaging.version
 import pyproject_metadata
 
-from variantlib.api import validate_variant
+from variantlib.api import set_variant_metadata, validate_variant
 from variantlib.models.variant import VariantProperty, VariantDescription
 from variantlib.loader import PluginLoader
 
@@ -475,10 +475,9 @@ class _WheelBuilder():
             import pyproject_metadata.constants as c
             c.KNOWN_METADATA_FIELDS.add('variant')
             c.KNOWN_METADATA_FIELDS.add('variant-hash')
+            c.KNOWN_METADATA_FIELDS.add('variant-provider')
 
-            metadata['Variant-Hash'] = self._variant.hexdigest
-            for vprop in self._variant.properties:
-                metadata['Variant'] = vprop.to_str()
+            set_variant_metadata(metadata, self._variant)
 
         whl.writestr(f'{self._distinfo_dir}/METADATA', bytes(metadata))
         whl.writestr(f'{self._distinfo_dir}/WHEEL', self.wheel)
