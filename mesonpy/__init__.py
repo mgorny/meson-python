@@ -331,11 +331,13 @@ class _WheelBuilder():
         metadata: Metadata,
         manifest: Dict[str, List[Tuple[pathlib.Path, str]]],
         limited_api: bool,
+        freethreading_limited_api: bool,
         allow_windows_shared_libs: bool,
     ) -> None:
         self._metadata = metadata
         self._manifest = manifest
         self._limited_api = limited_api
+        self._freethreading_limited_api = freethreading_limited_api
         self._allow_windows_shared_libs = allow_windows_shared_libs
 
     @property
@@ -438,6 +440,8 @@ class _WheelBuilder():
                         raise BuildError(
                             f'The package declares compatibility with Python limited API but extension '
                             f'module {os.fspath(path)!r} is tagged for a specific Python version.')
+            if self._freethreading_limited_api:
+                return 'abi3.abi3t'
             return 'abi3'
         return None
 
@@ -597,6 +601,7 @@ def _validate_pyproject_config(pyproject: Dict[str, Any]) -> Dict[str, Any]:
     scheme = _table({
         'meson': _string_or_path,
         'limited-api': _bool,
+        'freethreading-limited-api': _bool,
         'allow-windows-internal-shared-libs': _bool,
         'args': _table(dict.fromkeys(_MESON_ARGS_KEYS, _strings)),
         'wheel': _table({
@@ -676,6 +681,7 @@ class Project():
         self._meson_cross_file = self._build_dir / 'meson-python-cross-file.ini'
         self._meson_args: MesonArgs = collections.defaultdict(list)
         self._limited_api = False
+        self._freethreading_limited_api = False
 
         # load pyproject.toml
         pyproject = tomllib.loads(self._source_dir.joinpath('pyproject.toml').read_text(encoding='utf-8'))
@@ -842,7 +848,17 @@ class Project():
             if not allow_limited_api:
                 self._limited_api = False
 
-        if self._limited_api and bool(sysconfig.get_config_var('Py_GIL_DISABLED')):
+        self._freethreading_limited_api = pyproject_config.get('freethreading-limited-api', False)
+        if self._freethreading_limited_api:
+            # check whether freethreading_limited API is disabled for the Meson project
+            options = self._info('intro-buildoptions')
+            allow_freethreading_limited_api = next((opt['value'] for opt in options if opt['name'] == 'python.allow_limited_api'), None)
+            if not allow_freethreading_limited_api:
+                self._freethreading_limited_api = False
+            else:
+                self._limited_api = True
+
+        if self._limited_api and not self._freethreading_limited_api and bool(sysconfig.get_config_var('Py_GIL_DISABLED')):
             raise BuildError(
                 'The package targets Python\'s Limited API, which is not supported by free-threaded CPython. '
                 'The "python.allow_limited_api" Meson build option may be used to override the package default.')
@@ -1096,13 +1112,13 @@ class Project():
     def wheel(self, directory: Path) -> pathlib.Path:
         """Generates a wheel in the specified directory."""
         self.build()
-        builder = _WheelBuilder(self._metadata, self._manifest, self._limited_api, self._allow_windows_shared_libs)
+        builder = _WheelBuilder(self._metadata, self._manifest, self._limited_api, self._freethreading_limited_api, self._allow_windows_shared_libs)
         return builder.build(directory)
 
     def editable(self, directory: Path) -> pathlib.Path:
         """Generates an editable wheel in the specified directory."""
         self.build()
-        builder = _EditableWheelBuilder(self._metadata, self._manifest, self._limited_api, self._allow_windows_shared_libs)
+        builder = _EditableWheelBuilder(self._metadata, self._manifest, self._limited_api, self._freethreading_limited_api, self._allow_windows_shared_libs)
         return builder.build(directory, self._source_dir, self._build_dir, self._build_command, self._editable_verbose)
 
 
