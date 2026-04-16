@@ -436,7 +436,7 @@ class _WheelBuilder():
                 match = _EXTENSION_SUFFIX_REGEX.match(path.name)
                 if match:
                     abi = match.group('abi')
-                    if abi is not None and abi != 'abi3':
+                    if abi is not None and abi not in ('abi3', 'abi3t'):
                         raise BuildError(
                             f'The package declares compatibility with Python limited API but extension '
                             f'module {os.fspath(path)!r} is tagged for a specific Python version.')
