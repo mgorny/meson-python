@@ -428,6 +428,8 @@ class _WheelBuilder():
         # not use the stable ABI filename suffix and wheels should not
         # be tagged with the abi3 tag.
         if self._limited_api and '__pypy__' not in sys.builtin_module_names:
+            # Default to abi3t compatibility, we downgrade below if necessary.
+            wheel_tag = 'abi3.abi3t'
             # Verify stable ABI compatibility: examine files installed
             # in {platlib} that look like extension modules, and raise
             # an exception if any of them has a Python version
@@ -436,13 +438,16 @@ class _WheelBuilder():
                 match = _EXTENSION_SUFFIX_REGEX.match(path.name)
                 if match:
                     abi = match.group('abi')
-                    if abi is not None and abi not in ('abi3', 'abi3t'):
-                        raise BuildError(
-                            f'The package declares compatibility with Python limited API but extension '
-                            f'module {os.fspath(path)!r} is tagged for a specific Python version.')
-            if self._freethreading_limited_api:
-                return 'abi3.abi3t'
-            return 'abi3'
+                    if abi is not None:
+                        if abi == 'abi3':
+                            # If at least one extension is not abi3t,
+                            # downgrade to abi3.
+                            wheel_tag = 'abi3'
+                        elif abi != 'abi3t':
+                            raise BuildError(
+                                f'The package declares compatibility with Python limited API but extension '
+                                f'module {os.fspath(path)!r} is tagged for a specific Python version.')
+            return wheel_tag
         return None
 
     def _install_path(self, wheel_file: mesonpy._wheelfile.WheelFile, origin: Path, destination: pathlib.Path) -> None:
