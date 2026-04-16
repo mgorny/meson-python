@@ -849,11 +849,6 @@ class Project():
             if not allow_limited_api:
                 self._limited_api = False
 
-        if self._limited_api and bool(sysconfig.get_config_var('Py_GIL_DISABLED')):
-            raise BuildError(
-                'The package targets Python\'s Limited API, which is not supported by free-threaded CPython. '
-                'The "python.allow_limited_api" Meson build option may be used to override the package default.')
-
         # Shared library support on Windows requires collaboration
         # from the package, make sure the developers acknowledge this.
         self._allow_windows_shared_libs = pyproject_config.get('allow-windows-internal-shared-libs', False)
