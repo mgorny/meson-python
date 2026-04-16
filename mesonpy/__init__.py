@@ -853,7 +853,8 @@ class Project():
             # check whether freethreading_limited API is disabled for the Meson project
             options = self._info('intro-buildoptions')
             allow_freethreading_limited_api = next((opt['value'] for opt in options if opt['name'] == 'python.allow_limited_api'), None)
-            if not allow_freethreading_limited_api:
+            # meson currently does not support forcing limited API from GIL Python
+            if not allow_freethreading_limited_api or not bool(sysconfig.get_config_var('Py_GIL_DISABLED')):
                 self._freethreading_limited_api = False
             else:
                 self._limited_api = True
